@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fiszki – Kodeks cywilny art. 33–72</title>
+<style>
+  :root{--bg:#0f172a;--panel:#1e293b;--text:#f1f5f9;--muted:#94a3b8;--accent:#6366f1;--ok:#22c55e;--no:#ef4444;--front:#312e81;--back:#065f46}
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;background:var(--bg);color:var(--text);font-family:system-ui,Segoe UI,Roboto,sans-serif;display:flex;flex-direction:column;align-items:center;padding:16px}
+  h1{font-size:1.3rem;margin:8px 0 2px;text-align:center}
+  .sub{color:var(--muted);font-size:.9rem;margin-bottom:14px;text-align:center}
+  .stats{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-bottom:10px}
+  .stat{background:var(--panel);padding:6px 14px;border-radius:999px;font-size:.9rem}
+  .bar{width:min(640px,100%);height:8px;background:var(--panel);border-radius:99px;overflow:hidden;margin-bottom:16px}
+  .bar>div{height:100%;width:0;background:var(--accent);transition:width .3s}
+  .scene{width:min(640px,100%);height:340px;perspective:1200px;cursor:pointer}
+  .card{position:relative;width:100%;height:100%;transition:transform .5s;transform-style:preserve-3d}
+  .card.flipped{transform:rotateY(180deg)}
+  .face{position:absolute;inset:0;backface-visibility:hidden;border-radius:18px;padding:24px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;overflow:auto;box-shadow:0 10px 30px #0006}
+  .front{background:var(--front)}
+  .back{background:var(--back);transform:rotateY(180deg)}
+  .art{font-size:.85rem;letter-spacing:.08em;text-transform:uppercase;color:#c7d2fe;margin-bottom:12px}
+  .back .art{color:#a7f3d0}
+  .txt{font-size:1.2rem;line-height:1.5}
+  .hint{margin-top:14px;font-size:.8rem;color:var(--muted)}
+  .actions{display:flex;gap:12px;margin-top:18px;width:min(640px,100%)}
+  button{flex:1;border:0;border-radius:12px;padding:14px;font-size:1rem;font-weight:600;color:#fff;cursor:pointer}
+  button:disabled{opacity:.35;cursor:not-allowed}
+  .no{background:var(--no)} .ok{background:var(--ok)} .ghost{background:var(--panel);flex:none;padding:10px 16px;font-size:.9rem}
+  .tools{margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+  select.ghost{color:#fff;border:0;border-radius:12px;max-width:100%}
+  .end{width:min(640px,100%);background:var(--panel);border-radius:18px;padding:32px;text-align:center;display:none}
+  .end h2{margin-top:0}
+  .big{font-size:2.6rem;font-weight:800;color:var(--ok)}
+  .end button{margin-top:12px;background:var(--accent);width:100%}
+</style>
+</head>
+<body>
+<h1>Kodeks cywilny – fiszki</h1>
+<div class="sub">Księga I – art. 33–72¹</div>
+
+<div id="game" style="width:100%;display:flex;flex-direction:column;align-items:center">
+  <div class="stats">
+    <div class="stat">Runda: <b id="round">1</b></div>
+    <div class="stat">Karta: <b id="pos">0/0</b></div>
+    <div class="stat">Umiem: <b id="known">0</b></div>
+    <div class="stat">Seria: <b id="streak">0</b> 🔥</div>
+  </div>
+  <div class="bar"><div id="prog"></div></div>
+
+  <div class="scene" id="scene">
+    <div class="card" id="card">
+      <div class="face front"><div class="art" id="fArt"></div><div class="txt" id="fTxt"></div><div class="hint">Kliknij lub spacja, aby odwrócić</div></div>
+      <div class="face back"><div class="art" id="bArt"></div><div class="txt" id="bTxt"></div></div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="no" id="btnNo" disabled>✗ Jeszcze nie (←)</button>
+    <button class="ok" id="btnOk" disabled>✓ Umiem (→)</button>
+  </div>
+  <div class="tools">
+    <select id="sec" class="ghost"></select>
+    <button class="ghost" id="btnShuffle">🔀 Przetasuj od nowa</button>
+    <button class="ghost" id="btnSwap">↔ Odwróć kierunek: <span id="dir">pytanie → odpowiedź</span></button>
+  </div>
+</div>
+
+<div class="end" id="end">
+  <h2>Koniec! 🎉</h2>
+  <div class="big" id="score"></div>
+  <p id="endMsg"></p>
+  <button id="btnAgain">Zagraj jeszcze raz</button>
+</div>
+
+<script>
+// Treść: Kodeks cywilny, art. 33–43 (Osoby prawne)
+const CARDS = [
+ {a:"Art. 33",q:"Kto jest osobą prawną?",r:"Skarb Państwa oraz jednostki organizacyjne, którym przepisy szczególne przyznają osobowość prawną."},
+ {a:"Art. 33¹ § 1",q:"Jakie przepisy stosuje się do jednostek organizacyjnych bez osobowości prawnej, którym ustawa przyznaje zdolność prawną?",r:"Odpowiednio przepisy o osobach prawnych."},
+ {a:"Art. 33¹ § 2",q:"Kto i kiedy odpowiada za zobowiązania jednostki organizacyjnej bez osobowości prawnej (ale ze zdolnością prawną)?",r:"Jej członkowie – odpowiedzialność subsydiarna (jeśli przepis odrębny nie stanowi inaczej). Powstaje z chwilą, gdy jednostka stała się niewypłacalna."},
+ {a:"Art. 34",q:"Czyje prawa i obowiązki dotyczące mienia państwowego ma Skarb Państwa w stosunkach cywilnoprawnych?",r:"Jest podmiotem praw i obowiązków dotyczących mienia państwowego nienależącego do innych państwowych osób prawnych."},
+ {a:"Art. 35",q:"Co określa powstanie, ustrój i ustanie osób prawnych?",r:"Właściwe przepisy; w wypadkach i zakresie w nich przewidzianych organizację i sposób działania osoby prawnej reguluje także jej statut."},
+ {a:"Art. 37 § 1",q:"Kiedy jednostka organizacyjna uzyskuje osobowość prawną?",r:"Z chwilą wpisu do właściwego rejestru, chyba że przepisy szczególne stanowią inaczej."},
+ {a:"Art. 37 § 2",q:"Co reguluje rodzaje rejestrów osób prawnych, ich organizację i sposób prowadzenia?",r:"Odrębne przepisy."},
+ {a:"Art. 38",q:"W jaki sposób działa osoba prawna?",r:"Przez swoje organy, w sposób przewidziany w ustawie i w opartym na niej statucie."},
+ {a:"Art. 39 § 1",q:"Od czego zależy ważność umowy zawartej przez osobę występującą jako organ osoby prawnej bez umocowania lub z przekroczeniem jego zakresu?",r:"Od potwierdzenia umowy przez osobę prawną, w której imieniu została zawarta."},
+ {a:"Art. 39 § 2",q:"Co może zrobić druga strona umowy zawartej bez umocowania organu i kiedy staje się wolna?",r:"Może wyznaczyć osobie prawnej odpowiedni termin do potwierdzenia umowy; staje się wolna po bezskutecznym upływie tego terminu."},
+ {a:"Art. 39 § 3",q:"Co jest obowiązany zrobić ten, kto zawarł umowę jako organ osoby prawnej bez umocowania, gdy nie ma potwierdzenia?",r:"Zwrócić to, co otrzymał od drugiej strony w wykonaniu umowy, oraz naprawić szkodę, którą druga strona poniosła, zawierając umowę bez wiedzy o braku umocowania lub przekroczeniu jego zakresu."},
+ {a:"Art. 39 § 4",q:"Jaki skutek ma jednostronna czynność prawna dokonana jako organ osoby prawnej bez umocowania lub z jego przekroczeniem?",r:"Jest nieważna. Jednak gdy adresat oświadczenia zgodził się na działanie bez umocowania, stosuje się odpowiednio przepisy o zawarciu umowy bez umocowania."},
+ {a:"Art. 39 § 5",q:"Co, gdy czynność prawna została dokonana w imieniu osoby prawnej, która nie istnieje?",r:"Stosuje się odpowiednio § 3 (zwrot świadczenia i naprawienie szkody przez działającego)."},
+ {a:"Art. 40 § 1",q:"Czy Skarb Państwa odpowiada za zobowiązania państwowych osób prawnych (i odwrotnie)?",r:"Nie – chyba że przepis odrębny stanowi inaczej. Państwowe osoby prawne nie odpowiadają też za zobowiązania Skarbu Państwa."},
+ {a:"Art. 40 § 2",q:"Kiedy i w jakich granicach Skarb Państwa odpowiada solidarnie z państwową osobą prawną?",r:"Przy nieodpłatnym przejęciu składnika mienia od państwowej osoby prawnej – za zobowiązania powstałe, gdy składnik był jej własnością, do wartości składnika według stanu z chwili przejęcia, a według cen z chwili zapłaty."},
+ {a:"Art. 40 § 3",q:"Do kogo odpowiednio stosuje się art. 40 § 1 i 2?",r:"Do odpowiedzialności jednostek samorządu terytorialnego i samorządowych osób prawnych."},
+ {a:"Art. 41",q:"Co jest siedzibą osoby prawnej, jeśli ustawa lub statut nie stanowi inaczej?",r:"Miejscowość, w której ma siedzibę jej organ zarządzający."},
+ {a:"Art. 42 § 1",q:"Co robi sąd, gdy osoba prawna nie może być reprezentowana lub prowadzić spraw z powodu braku organu (lub osoby uprawnionej do reprezentacji w organie)?",r:"Ustanawia dla niej kuratora. Kurator podlega nadzorowi sądu, który go ustanowił."},
+ {a:"Art. 42 § 2",q:"Do kiedy i w jakich granicach kurator reprezentuje osobę prawną?",r:"Do czasu powołania albo uzupełnienia składu organu albo ustanowienia likwidatora; reprezentuje ją i prowadzi jej sprawy w granicach określonych w zaświadczeniu sądu."},
+ {a:"Art. 42 § 3",q:"Jakie czynności niezwłocznie podejmuje kurator?",r:"Zmierzające do powołania albo uzupełnienia składu organu uprawnionego do reprezentacji, a w razie potrzeby do likwidacji osoby prawnej."},
+ {a:"Art. 42 § 4",q:"Na co kurator musi uzyskać zezwolenie sądu rejestrowego pod rygorem nieważności?",r:"1) Nabycie i zbycie przedsiębiorstwa lub jego zorganizowanej części oraz oddanie ich do czasowego korzystania; 2) nabycie, zbycie i obciążanie nieruchomości, użytkowania wieczystego lub udziału w nieruchomości."},
+ {a:"Art. 42¹ § 1",q:"Na jaki okres ustanawia się kuratora osoby prawnej?",r:"Na okres nieprzekraczający roku. W szczególnie uzasadnionych przypadkach można go przedłużać na czas oznaczony, gdy czynności z art. 42 § 3 nie mogły zostać zakończone."},
+ {a:"Art. 42¹ § 2",q:"Co robi kurator, gdy jego czynności nie doprowadziły do powołania/uzupełnienia organu ani likwidacji?",r:"Niezwłocznie występuje do sądu rejestrowego z wnioskiem o rozwiązanie osoby prawnej."},
+ {a:"Art. 43",q:"Jak stosuje się przepisy o ochronie dóbr osobistych do osób prawnych?",r:"Przepisy o ochronie dóbr osobistych osób fizycznych stosuje się odpowiednio do osób prawnych."}
+];
+
+const G1="Osoby prawne (art. 33–43)", G2="Przedsiębiorcy i firma (art. 43¹–43¹⁰)", G3="Mienie (art. 44–55⁴)", G4="Czynności prawne – ogólne (art. 56–65¹)", G5="Zawarcie umowy (art. 66–72¹)";
+CARDS.forEach(c=>c.s=G1);
+const MORE = [
+ [G2,"Art. 43¹","Kto jest przedsiębiorcą?","Osoba fizyczna, osoba prawna i jednostka organizacyjna z art. 33¹ § 1, prowadząca we własnym imieniu działalność gospodarczą lub zawodową."],
+ [G2,"Art. 43² § 1–2","Pod czym działa przedsiębiorca i gdzie się to ujawnia?","Działa pod firmą. Firmę ujawnia się we właściwym rejestrze, chyba że przepisy odrębne stanowią inaczej."],
+ [G2,"Art. 43³","Jakie wymogi musi spełniać firma przedsiębiorcy?","Powinna się dostatecznie odróżniać od firm innych przedsiębiorców na tym samym rynku (§ 1) i nie może wprowadzać w błąd, w szczególności co do osoby przedsiębiorcy, przedmiotu i miejsca działalności, źródeł zaopatrzenia (§ 2)."],
+ [G2,"Art. 43⁴","Co jest firmą osoby fizycznej?","Jej imię i nazwisko. Można włączyć pseudonim lub określenia wskazujące na przedmiot i miejsce działalności oraz inne dowolnie obrane."],
+ [G2,"Art. 43⁵ § 1–2","Co jest firmą osoby prawnej i co musi zawierać?","Jej nazwa. Zawiera określenie formy prawnej (może być skrót); może wskazywać przedmiot działalności, siedzibę i inne określenia dowolnie obrane."],
+ [G2,"Art. 43⁵ § 3","Kiedy firma osoby prawnej może zawierać nazwisko lub pseudonim osoby fizycznej?","Gdy służy to ukazaniu związków tej osoby z powstaniem lub działalnością przedsiębiorcy. Wymaga pisemnej zgody tej osoby, a po jej śmierci – zgody małżonka i dzieci."],
+ [G2,"Art. 43⁶","Co zawiera firma oddziału osoby prawnej?","Pełną nazwę osoby prawnej oraz określenie „oddział” ze wskazaniem miejscowości, w której oddział ma siedzibę."],
+ [G2,"Art. 43⁷","Co wymaga ujawnienia w rejestrze i co z firmą przy przekształceniu osoby prawnej?","Zmiana firmy wymaga ujawnienia w rejestrze. Przy przekształceniu można zachować dotychczasową firmę z wyjątkiem określenia formy prawnej, jeśli uległa zmianie. Tak samo przy przekształceniu spółki osobowej."],
+ [G2,"Art. 43⁸ § 1–2","Kiedy spółka może zachować w firmie nazwisko byłego wspólnika?","Tylko za jego pisemną zgodą (po śmierci – za zgodą małżonka i dzieci). Odpowiednio przy kontynuowaniu działalności osoby fizycznej przez jej następcę prawnego."],
+ [G2,"Art. 43⁸ § 3","Pod jaką nazwą może działać nabywca przedsiębiorstwa?","Może prowadzić je pod dotychczasową nazwą, ale powinien dodać dodatek wskazujący swoją firmę lub nazwisko, chyba że strony postanowiły inaczej."],
+ [G2,"Art. 43⁹","Czy firmę można zbyć? Czy można pozwolić innemu z niej korzystać?","Firma nie może być zbyta. Przedsiębiorca może upoważnić innego przedsiębiorcę do korzystania ze swej firmy, jeśli nie wprowadza to w błąd."],
+ [G2,"Art. 43¹⁰","Czego może żądać przedsiębiorca, którego prawo do firmy zostało zagrożone lub naruszone?","Zagrożenie: zaniechania działania (chyba że nie jest bezprawne). Naruszenie: także usunięcia skutków, oświadczenia o odpowiedniej treści i formie, naprawienia szkody majątkowej lub wydania uzyskanej korzyści."],
+
+ [G3,"Art. 44","Co to jest mienie?","Własność i inne prawa majątkowe."],
+ [G3,"Art. 44¹","Komu przysługuje mienie państwowe i co określa uprawnienia Skarbu Państwa względem państwowych osób prawnych?","Skarbowi Państwa albo innym państwowym osobom prawnym (§ 1). Uprawnienia majątkowe Skarbu Państwa względem nich określają odrębne przepisy, zwłaszcza o ich ustroju (§ 2)."],
+ [G3,"Art. 45","Co jest rzeczą w rozumieniu kodeksu?","Tylko przedmioty materialne."],
+ [G3,"Art. 46 § 1","Co jest nieruchomością?","Części powierzchni ziemskiej stanowiące odrębny przedmiot własności (grunty) oraz budynki trwale z gruntem związane lub ich części, jeśli na mocy przepisów szczególnych stanowią odrębny od gruntu przedmiot własności."],
+ [G3,"Art. 46 § 2","Co reguluje prowadzenie ksiąg wieczystych?","Odrębne przepisy."],
+ [G3,"Art. 46¹","Co to są nieruchomości rolne (grunty rolne)?","Nieruchomości, które są lub mogą być wykorzystywane do działalności wytwórczej w rolnictwie w zakresie produkcji roślinnej i zwierzęcej, w tym ogrodniczej, sadowniczej i rybnej."],
+ [G3,"Art. 47 § 1","Czy część składowa rzeczy może być odrębnym przedmiotem własności?","Nie. Część składowa nie może być odrębnym przedmiotem własności i innych praw rzeczowych."],
+ [G3,"Art. 47 § 2–3","Co jest częścią składową rzeczy? Czy przedmioty połączone przemijająco nią są?","Wszystko, czego nie można odłączyć bez uszkodzenia lub istotnej zmiany całości albo przedmiotu odłączonego. Przedmioty połączone tylko dla przemijającego użytku nie są częściami składowymi."],
+ [G3,"Art. 48","Co w szczególności należy do części składowych gruntu?","Budynki i inne urządzenia trwale z gruntem związane oraz drzewa i inne rośliny od chwili zasadzenia lub zasiania (z zastrzeżeniem wyjątków w ustawie)."],
+ [G3,"Art. 49 § 1","Kiedy urządzenia przesyłowe (płyny, para, gaz, energia) nie należą do części składowych nieruchomości?","Gdy wchodzą w skład przedsiębiorstwa."],
+ [G3,"Art. 49 § 2","Czego może żądać osoba, która poniosła koszty budowy urządzeń przesyłowych i jest ich właścicielem?","Aby przedsiębiorca, który przyłączył je do swojej sieci, nabył ich własność za odpowiednim wynagrodzeniem (chyba że umowa stanowi inaczej). Z żądaniem przeniesienia własności może wystąpić też przedsiębiorca."],
+ [G3,"Art. 50","Co jeszcze uważa się za części składowe nieruchomości?","Prawa związane z jej własnością."],
+ [G3,"Art. 51","Co to są przynależności i jakie są ich cechy?","Rzeczy ruchome potrzebne do korzystania z rzeczy głównej zgodnie z jej przeznaczeniem, pozostające z nią w faktycznym związku. Nie może być nią rzecz nienależąca do właściciela rzeczy głównej. Nie traci charakteru przez przemijające pozbawienie związku."],
+ [G3,"Art. 52","Jak czynność prawna dotycząca rzeczy głównej działa na przynależności?","Odnosi skutek także względem przynależności, chyba że co innego wynika z treści czynności lub z przepisów szczególnych."],
+ [G3,"Art. 53","Co to są pożytki naturalne i cywilne rzeczy?","Naturalne: płody i inne odłączone części składowe, o ile według prawidłowej gospodarki stanowią normalny dochód. Cywilne: dochody, które rzecz przynosi na podstawie stosunku prawnego."],
+ [G3,"Art. 54","Co to są pożytki prawa?","Dochody, które prawo przynosi zgodnie ze swym społeczno-gospodarczym przeznaczeniem."],
+ [G3,"Art. 55 § 1","Komu przypadają pożytki naturalne i cywilne?","Uprawnionemu do pobierania: naturalne odłączone w czasie trwania jego uprawnienia, cywilne – w stosunku do czasu trwania uprawnienia."],
+ [G3,"Art. 55 § 2","Co przysługuje uprawnionemu, który poczynił nakłady na pożytki, które przypadły innej osobie?","Wynagrodzenie za nakłady od tej osoby – nie może ono przenosić wartości pożytków."],
+ [G3,"Art. 55¹","Co to jest przedsiębiorstwo?","Zorganizowany zespół składników niematerialnych i materialnych przeznaczony do prowadzenia działalności gospodarczej. Obejmuje m.in.: nazwę, własność nieruchomości i ruchomości, prawa z najmu i dzierżawy, wierzytelności i środki pieniężne, koncesje, licencje, zezwolenia, patenty, majątkowe prawa autorskie, tajemnice przedsiębiorstwa, księgi i dokumenty."],
+ [G3,"Art. 55²","Jaki zakres ma czynność prawna dotycząca przedsiębiorstwa?","Obejmuje wszystko, co wchodzi w skład przedsiębiorstwa, chyba że co innego wynika z treści czynności lub z przepisów szczególnych."],
+ [G3,"Art. 55³","Co to jest gospodarstwo rolne?","Grunty rolne wraz z gruntami leśnymi, budynkami lub ich częściami, urządzeniami i inwentarzem, jeśli stanowią lub mogą stanowić zorganizowaną całość gospodarczą, oraz prawa związane z prowadzeniem gospodarstwa."],
+ [G3,"Art. 55⁴","Jak odpowiada nabywca przedsiębiorstwa lub gospodarstwa rolnego?","Solidarnie ze zbywcą za zobowiązania związane z prowadzeniem, chyba że nie wiedział o nich mimo należytej staranności. Do wartości nabytego składnika (stan z chwili nabycia, ceny z chwili zaspokojenia). Bez zgody wierzyciela nie można tego wyłączyć ani ograniczyć."],
+
+ [G4,"Art. 56","Jakie skutki wywołuje czynność prawna?","Nie tylko wyrażone w niej, lecz także wynikające z ustawy, z zasad współżycia społecznego i z ustalonych zwyczajów."],
+ [G4,"Art. 57","Czy można wyłączyć uprawnienie do rozporządzania zbywalnym prawem?","Nie można przez czynność prawną wyłączyć ani ograniczyć uprawnienia do przeniesienia, obciążenia, zmiany lub zniesienia zbywalnego prawa (§ 1). Dopuszczalne jest jednak zobowiązanie, że uprawniony nie dokona oznaczonych rozporządzeń (§ 2)."],
+ [G4,"Art. 58 § 1","Jaki skutek ma czynność prawna sprzeczna z ustawą lub mająca na celu jej obejście?","Jest nieważna, chyba że przepis przewiduje inny skutek, np. że na miejsce nieważnych postanowień wchodzą odpowiednie przepisy ustawy."],
+ [G4,"Art. 58 § 2","Jaki skutek ma czynność sprzeczna z zasadami współżycia społecznego?","Jest nieważna."],
+ [G4,"Art. 58 § 3","Co, gdy nieważnością dotknięta jest tylko część czynności prawnej?","Czynność pozostaje w mocy co do pozostałych części, chyba że z okoliczności wynika, iż bez postanowień dotkniętych nieważnością nie zostałaby dokonana."],
+ [G4,"Art. 59","Kiedy osoba trzecia może żądać uznania umowy za bezskuteczną wobec niej?","Gdy wykonanie umowy uniemożliwia (całkowicie lub częściowo) zaspokojenie jej roszczenia, a strony o roszczeniu wiedziały albo umowa była nieodpłatna. Nie można żądać po upływie roku od zawarcia umowy."],
+ [G4,"Art. 60","W jaki sposób może być wyrażona wola (oświadczenie woli)?","Przez każde zachowanie ujawniające wolę w sposób dostateczny, w tym w postaci elektronicznej (z zastrzeżeniem wyjątków w ustawie)."],
+ [G4,"Art. 61 § 1","Kiedy oświadczenie woli składane innej osobie jest złożone? Kiedy odwołanie jest skuteczne?","Gdy doszło do adresata tak, że mógł zapoznać się z treścią. Odwołanie skuteczne, jeśli doszło jednocześnie z oświadczeniem lub wcześniej."],
+ [G4,"Art. 61 § 2","Kiedy elektroniczne oświadczenie woli jest złożone innej osobie?","Z chwilą wprowadzenia go do środka komunikacji elektronicznej tak, żeby adresat mógł zapoznać się z treścią."],
+ [G4,"Art. 62","Czy śmierć lub utrata zdolności składającego oświadczenie przed jego dojściem pozbawia je mocy?","Nie, chyba że co innego wynika z treści oświadczenia, ustawy lub okoliczności."],
+ [G4,"Art. 63 § 1","Kiedy osoba trzecia może wyrazić zgodę na czynność prawną i od kiedy działa zgoda po złożeniu oświadczenia?","Przed złożeniem oświadczenia albo po jego złożeniu. Zgoda wyrażona po złożeniu ma moc wsteczną od jego daty."],
+ [G4,"Art. 63 § 2","W jakiej formie zgoda osoby trzeciej, gdy wymagana jest forma szczególna?","W tej samej formie."],
+ [G4,"Art. 64","Co zastępuje prawomocne orzeczenie sądu o obowiązku złożenia oświadczenia woli?","Samo oświadczenie woli."],
+ [G4,"Art. 65 § 1","Jak tłumaczyć oświadczenia woli?","Jak wymagają okoliczności, w których zostało złożone, zasady współżycia społecznego i ustalone zwyczaje."],
+ [G4,"Art. 65 § 2","Jak interpretować umowy?","Raczej badać zgodny zamiar stron i cel umowy, niż opierać się na dosłownym brzmieniu."],
+ [G4,"Art. 65¹","Do czego stosuje się odpowiednio przepisy o oświadczeniach woli?","Do innych oświadczeń."],
+
+ [G5,"Art. 66 § 1","Kiedy oświadczenie woli zawarcia umowy jest ofertą?","Gdy określa istotne postanowienia tej umowy."],
+ [G5,"Art. 66 § 2","Do kiedy wiąże oferta bez oznaczonego terminu odpowiedzi?","Złożona w obecności drugiej strony lub środkiem bezpośredniego porozumiewania się – przestaje wiązać, gdy nie zostanie przyjęta niezwłocznie. Złożona inaczej – z upływem czasu, w którym oferent mógł w zwykłym toku czynności otrzymać odpowiedź wysłaną bez nieuzasadnionego opóźnienia."],
+ [G5,"Art. 66¹ § 1","Kiedy oferta w postaci elektronicznej wiąże składającego?","Jeśli druga strona niezwłocznie potwierdzi jej otrzymanie."],
+ [G5,"Art. 66¹ § 2","O czym przedsiębiorca składający ofertę elektronicznie musi poinformować przed zawarciem umowy?","O: 1) czynnościach technicznych procedury zawarcia umowy, 2) skutkach prawnych potwierdzenia otrzymania oferty, 3) zasadach utrwalania i udostępniania treści umowy, 4) metodach wykrywania i korygowania błędów w danych, 5) językach umowy, 6) stosowanych kodeksach etycznych i ich dostępności elektronicznej."],
+ [G5,"Art. 66¹ § 3–4","Kiedy nie stosuje się obowiązków informacyjnych z art. 66¹?","Przy zawieraniu umów e-mailem lub podobnymi środkami indywidualnego porozumiewania się na odległość oraz w stosunkach między przedsiębiorcami, jeśli strony tak postanowiły. (§ 3: obowiązki z § 2 stosuje się też przy zaproszeniu do negocjacji, ofert lub zawarcia umowy.)"],
+ [G5,"Art. 66² § 1–2","Kiedy między przedsiębiorcami można odwołać ofertę?","Przed zawarciem umowy, jeśli oświadczenie o odwołaniu złożono przed wysłaniem przez drugą stronę oświadczenia o przyjęciu. Nie można odwołać, jeśli wynika to z treści oferty lub określono termin przyjęcia."],
+ [G5,"Art. 67","Co, gdy oświadczenie o przyjęciu oferty nadeszło z opóźnieniem, ale wysłano je w czasie właściwym?","Umowa dochodzi do skutku, chyba że oferent niezwłocznie zawiadomi, że wskutek opóźnienia poczytuje umowę za niezawartą."],
+ [G5,"Art. 68","Jak traktuje się przyjęcie oferty z zastrzeżeniem zmiany lub uzupełnienia treści?","Jako nową ofertę."],
+ [G5,"Art. 68¹ § 1","Jak między przedsiębiorcami traktuje się odpowiedź na ofertę z zastrzeżeniami nieistotnie zmieniającymi treść?","Jako przyjęcie oferty. Umowa ma treść z oferty, z uwzględnieniem zastrzeżeń z odpowiedzi."],
+ [G5,"Art. 68¹ § 2","Kiedy nie stosuje się art. 68¹ § 1?","Gdy oferta mówi, że może być przyjęta tylko bez zastrzeżeń; gdy oferent niezwłocznie sprzeciwił się zastrzeżeniom; gdy druga strona uzależniła przyjęcie od zgody oferenta na zastrzeżenia, a zgody niezwłocznie nie otrzymała."],
+ [G5,"Art. 68²","Co oznacza brak niezwłocznej odpowiedzi przedsiębiorcy na ofertę od partnera w stałych stosunkach gospodarczych?","Poczytuje się to za przyjęcie oferty (oferty zawarcia umowy w ramach jego działalności)."],
+ [G5,"Art. 69","Kiedy umowa zawarta jest bez dojścia oświadczenia o przyjęciu oferty?","Gdy zwyczaj lub treść oferty nie wymaga dojścia oświadczenia (zwłaszcza gdy oferent żąda niezwłocznego wykonania) – umowa dochodzi do skutku, gdy druga strona w czasie właściwym przystąpi do wykonania; w przeciwnym razie oferta przestaje wiązać."],
+ [G5,"Art. 70 § 1","W razie wątpliwości – w jakiej chwili poczytuje się umowę za zawartą?","W chwili otrzymania przez oferenta oświadczenia o przyjęciu oferty; gdy dojście nie jest wymagane – w chwili przystąpienia drugiej strony do wykonania."],
+ [G5,"Art. 70 § 2","W razie wątpliwości – w jakim miejscu poczytuje się umowę za zawartą?","W miejscu otrzymania przez oferenta oświadczenia o przyjęciu; gdy dojście nie jest wymagane albo oferta elektroniczna – w miejscu zamieszkania lub siedzibie oferenta w chwili zawarcia umowy."],
+ [G5,"Art. 70¹","Co musi zawierać ogłoszenie aukcji lub przetargu i kiedy można je zmienić?","Czas, miejsce, przedmiot i warunki (albo sposób ich udostępnienia). Zmiana lub odwołanie tylko, jeśli to zastrzeżono. Od udostępnienia warunków organizator i od złożenia oferty oferent muszą postępować zgodnie z ogłoszeniem i warunkami."],
+ [G5,"Art. 70²","Kiedy oferta w aukcji przestaje wiązać i kiedy zawiera się umowę?","Przestaje wiązać, gdy licytant złożył korzystniejszą ofertę (chyba że zastrzeżono inaczej). Umowa zawarta z chwilą udzielenia przybicia. Gdy ważność zależy od szczególnych wymagań ustawy, organizator i uczestnik z przyjętą ofertą mogą dochodzić zawarcia umowy."],
+ [G5,"Art. 70³","Kiedy oferta w przetargu przestaje wiązać i jaki obowiązek ma organizator?","Gdy wybrano inną ofertę lub zamknięto przetarg bez wyboru (chyba że zastrzeżono inaczej). Organizator niezwłocznie powiadamia uczestników na piśmie o wyniku lub zamknięciu. Chwilę zawarcia umowy ustala się wg przepisów o przyjęciu oferty."],
+ [G5,"Art. 70⁴","Co to jest wadium i co się z nim dzieje?","Suma lub zabezpieczenie wpłacane organizatorowi pod rygorem niedopuszczenia do aukcji/przetargu. Gdy uczestnik z wybraną ofertą uchyla się od zawarcia umowy wymagającej szczególnych warunków ustawy – organizator może je zachować. Poza tym wadium zwraca się niezwłocznie. Gdy uchyla się organizator – uczestnik może żądać podwójnego wadium albo naprawienia szkody."],
+ [G5,"Art. 70⁵","Kiedy można żądać unieważnienia umowy zawartej w drodze aukcji lub przetargu i w jakim terminie?","Gdy strona, inny uczestnik lub osoba z nimi współdziałająca wpłynęła na wynik w sposób sprzeczny z prawem lub dobrymi obyczajami. Uprawnienie wygasa po miesiącu od dowiedzenia się o przyczynie, nie później niż po roku od zawarcia umowy."],
+ [G5,"Art. 71","Jak traktuje się ogłoszenia, reklamy, cenniki i inne informacje w razie wątpliwości?","Nie jako ofertę, lecz jako zaproszenie do zawarcia umowy."],
+ [G5,"Art. 72 § 1","Kiedy zostaje zawarta umowa po negocjacjach?","Gdy strony dojdą do porozumienia co do wszystkich postanowień, które były przedmiotem negocjacji."],
+ [G5,"Art. 72 § 2","Kto odpowiada za szkodę przy negocjacjach prowadzonych z naruszeniem dobrych obyczajów?","Strona, która rozpoczęła lub prowadziła negocjacje z naruszeniem dobrych obyczajów (zwł. bez zamiaru zawarcia umowy) – naprawia szkodę, którą druga strona poniosła, licząc na zawarcie umowy."],
+ [G5,"Art. 72¹","Co, gdy w negocjacjach udostępniono informacje z zastrzeżeniem poufności?","Druga strona nie ujawnia ich, nie przekazuje innym i nie wykorzystuje dla własnych celów (chyba że uzgodniono inaczej). Przy naruszeniu można żądać naprawienia szkody albo wydania uzyskanych korzyści."]
+];
+MORE.forEach(([s,a,q,r])=>CARDS.push({s,a,q,r}));
+
+const $ = id => document.getElementById(id);
+let deck, wrong, idx, round, known, streak, flipped, reverse = false, total;
+
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+
+function start(){
+  const pool = $('sec').value==='ALL' ? CARDS : CARDS.filter(c=>c.s===$('sec').value);
+  deck = shuffle(pool); wrong = []; idx = 0; round = 1; known = 0; streak = 0; total = pool.length;
+  $('end').style.display='none'; $('game').style.display='flex';
+  show();
+}
+function show(){
+  const c = deck[idx];
+  flipped = false; $('card').classList.remove('flipped');
+  $('fArt').textContent = reverse ? 'Odpowiedź' : c.a;
+  $('bArt').textContent = reverse ? c.a : 'Odpowiedź';
+  $('fTxt').textContent = reverse ? c.r : c.q;
+  $('bTxt').textContent = reverse ? c.q : c.r;
+  $('round').textContent = round;
+  $('pos').textContent = (idx+1)+'/'+deck.length;
+  $('known').textContent = known;
+  $('streak').textContent = streak;
+  $('prog').style.width = (known/total*100)+'%';
+  $('btnOk').disabled = $('btnNo').disabled = true;
+}
+function flip(){
+  flipped = !flipped;
+  $('card').classList.toggle('flipped', flipped);
+  if(flipped) $('btnOk').disabled = $('btnNo').disabled = false;
+}
+function answer(ok){
+  if(!flipped) return;
+  if(ok){known++;streak++}else{streak=0;wrong.push(deck[idx])}
+  idx++;
+  if(idx>=deck.length){
+    if(wrong.length){deck=shuffle(wrong);wrong=[];idx=0;round++;show()}
+    else finish();
+  } else show();
+}
+function finish(){
+  $('prog').style.width='100%';
+  $('game').style.display='none'; $('end').style.display='block';
+  $('score').textContent = total+' / '+total;
+  $('endMsg').textContent = round===1 ? 'Wszystko za pierwszym razem – świetnie!' : 'Opanowane w '+round+' rundach. Powtórz, żeby utrwalić.';
+}
+
+$('scene').onclick = flip;
+$('btnOk').onclick = ()=>answer(true);
+$('btnNo').onclick = ()=>answer(false);
+$('btnShuffle').onclick = start;
+$('btnAgain').onclick = start;
+$('btnSwap').onclick = ()=>{reverse=!reverse;$('dir').textContent=reverse?'odpowiedź → pytanie':'pytanie → odpowiedź';if(deck&&idx<deck.length)show()};
+document.addEventListener('keydown',e=>{
+  if(e.code==='Space'){e.preventDefault();flip()}
+  else if(e.code==='ArrowRight')answer(true);
+  else if(e.code==='ArrowLeft')answer(false);
+});
+const secs=[...new Set(CARDS.map(c=>c.s))];
+$('sec').innerHTML='<option value="ALL">Wszystkie działy ('+CARDS.length+')</option>'+secs.map(x=>'<option value="'+x+'">'+x+' ('+CARDS.filter(c=>c.s===x).length+')</option>').join('');
+$('sec').onchange=start;
+$('sec').addEventListener('keydown',e=>e.stopPropagation());
+start();
+</script>
+</body>
+</html>
